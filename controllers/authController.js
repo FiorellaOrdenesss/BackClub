@@ -1,0 +1,33 @@
+// controllers/authController.js
+const bcrypt = require("bcryptjs");
+const jwt = require("jsonwebtoken");
+const User = require("../models/user");
+
+exports.register = async (req, res) => {
+    const { username, password } = req.body;
+    try {
+        const hashedPassword = await bcrypt.hash(password, 10);
+        const newUser = await User.create({ username, password: hashedPassword });
+        res.json({ msg: "Usuario registrado", user: newUser });
+    } catch (err) {
+        res.status(500).json({ msg: "Error en el servidor", error: err.message });
+    }
+};
+
+exports.login = async (req, res) => {
+    const { username, password } = req.body;
+
+    try {
+        const user = await User.findOne({ where: { username } });
+        if (!user) return res.status(400).json({ msg: "Usuario no encontrado" });
+
+        const validPassword = await bcrypt.compare(password, user.password);
+        if (!validPassword) return res.status(400).json({ msg: "Contraseña incorrecta" });
+
+        const token = jwt.sign({ id: user.id }, process.env.JWT_SECRET, { expiresIn: "1h" });
+
+        res.json({ msg: "Login exitoso", token });
+    } catch (err) {
+        res.status(500).json({ msg: "Error en el servidor", error: err.message });
+    }
+};
